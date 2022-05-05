@@ -1,0 +1,258 @@
+breed [nodes node]
+
+nodes-own [node-state node-parent]
+patches-own [parent path-cost expanded? active?]
+
+to-report BFS [#initial-state #goal-state #valid-map] 
+  let frontier (list)
+  let explored (list)
+  
+  ask #initial-state
+  [
+    set parent self
+    set frontier fput self frontier
+    set explored fput self explored
+  ]
+  
+  let reached-goal? false
+  let exist-path? true
+  
+  while [not reached-goal? and exist-path?] [
+  ifelse not empty? frontier [
+    let current first frontier
+    set frontier remove current frontier
+    ask current [
+      let valid-neighbors neighbors with [member? self #valid-map and not member? self explored]
+      ask valid-neighbors [
+          
+          sprout-nodes 1 [
+          ht
+          set parent current
+          set frontier lput self frontier
+          ]
+          ifelse self = #goal-state
+              [
+                set reached-goal? true
+              ]
+            [set explored lput self explored]
+          
+          ] 
+       ] 
+    ]
+    [set exist-path? false]
+  ]
+  
+  ifelse exist-path?
+  [
+    
+    let current #goal-state
+    let path (list current)
+
+    ; loop until reach initial node
+    while [current != #initial-state]
+    [
+      set current [parent] of current
+      set path fput current path
+    ]
+
+    report path
+  ]
+  [report false]
+end
+
+to-report DFS [#initial-state #goal-state #valid-map]
+  let frontier (list)
+  let explored (list)
+  
+  ask #initial-state
+  [
+    set parent self
+    set path-cost 0
+    set frontier fput self frontier
+    set explored fput self explored
+  ]
+  
+  let reached-goal? false
+  let exist-path? true
+  
+  while [not reached-goal? and exist-path?] [
+  ifelse not empty? frontier [
+    let current first frontier
+    set frontier remove current frontier
+    ask current [
+      let valid-neighbors neighbors with [member? self #valid-map and not member? self explored]
+      ask valid-neighbors [
+          
+          sprout-nodes 1 [
+          ht
+          set parent current
+          set frontier fput self frontier
+          ]
+          ifelse self = #goal-state
+              [
+                set reached-goal? true
+              ]
+            [set explored lput self explored]
+          
+          ] 
+       ] 
+    ]
+    [set exist-path? false]
+  ]
+  
+  ifelse exist-path?
+  [
+    
+    let current #goal-state
+    let path (list current)
+
+    ; loop until reach initial node
+    while [current != #initial-state]
+    [
+      set current [parent] of current
+      set path fput current path
+    ]
+
+    report path
+  ]
+  [report false]
+end
+
+to-report UCS [#initial-state #goal-state #valid-map]
+  ;let frontier (list)
+  ;let expanded (list)
+  
+  ask #valid-map
+  [
+    set parent nobody
+    set path-cost 0
+    set expanded? false
+    set active? false
+  ]
+  
+  ask #initial-state
+  [
+    set parent self
+    ;set path-cost 0
+    set expanded? true
+    set active? true
+  ]
+  
+  let exist-path? true
+  
+  while [not [expanded?] of #goal-state and exist-path?] [
+    let options #valid-map with [active?]
+    ifelse any? options
+    [
+      ask min-one-of options [path-cost] [
+        
+        set active? false
+        let parent-path-cost path-cost
+
+        let valid-neighbors neighbors with [member? self #valid-map]
+        ask valid-neighbors [
+          let cost ifelse-value expanded? [path-cost] [2 ^ 13]
+          
+          if cost > (parent-path-cost + distance myself)
+          [
+            set parent myself
+            set expanded? true
+            set active? true
+            set path-cost parent-path-cost + distance parent
+          ]
+        ]
+      ]
+    ]
+    [set exist-path? false]
+  ]
+  
+  ifelse exist-path?
+  [
+    
+    let current #goal-state
+    let path (list current)
+
+    while [current != #initial-state]
+    [
+      set current [parent] of current
+      set path fput current path
+    ]
+
+    report path
+  ]
+  [report false]
+  
+end
+
+to-report A* [#initial-state #goal-state #valid-map]
+
+  ask #valid-map
+  [
+    set parent nobody
+    set path-cost 0
+    set expanded? false
+    set active? false
+  ]
+  
+  ask #initial-state
+  [
+    set parent self
+    ;set path-cost 0
+    set expanded? true
+    set active? true
+  ]
+  
+  let exist-path? true
+  
+  while [not [expanded?] of #goal-state and exist-path?] [
+    let options #valid-map with [active?]
+    ifelse any? options
+    [
+      ask min-one-of options [total-expected-cost #goal-state] [
+        
+        set active? false
+        let parent-path-cost path-cost
+
+        let valid-neighbors neighbors with [member? self #valid-map]
+        ask valid-neighbors [
+          let cost ifelse-value expanded? [total-expected-cost #goal-state] [2 ^ 32]
+          
+          if cost > (parent-path-cost + distance myself + heuristic #goal-state)
+          [
+            set parent myself
+            set expanded? true
+            set active? true
+            set path-cost parent-path-cost + distance parent
+          ]
+        ]
+      ]
+    ]
+    [set exist-path? false]
+  ]
+  
+  ifelse exist-path?
+  [
+    
+    let current #goal-state
+    let path (list current)
+
+    while [current != #initial-state]
+    [
+      set current [parent] of current
+      set path fput current path
+    ]
+
+    report path
+  ]
+  [report false]
+  
+end
+
+to-report total-expected-cost [#goal-state]
+  report path-cost + heuristic #goal-state
+end
+
+to-report heuristic [#goal-state]
+  report distance #goal-state
+end
+
